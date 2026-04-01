@@ -8,6 +8,8 @@ import { type ProviderMetadata } from "ai"
 import { Config } from "../config/config"
 import { Flag } from "../flag/flag"
 import { Installation } from "../installation"
+import { Provider } from "../provider/provider"
+import { ModelID, ProviderID } from "../provider/schema"
 
 import { Database, NotFoundError, eq, and, gte, isNull, desc, like, inArray, lt } from "../storage/db"
 import { SyncEvent } from "../sync"
@@ -78,6 +80,8 @@ export namespace Session {
       share,
       revert,
       permission: row.permission ?? undefined,
+      model: row.model ?? undefined,
+      modelVariant: row.model_variant ?? undefined,
       time: {
         created: row.time_created,
         updated: row.time_updated,
@@ -104,6 +108,8 @@ export namespace Session {
       summary_diffs: info.summary?.diffs,
       revert: info.revert ?? null,
       permission: info.permission,
+      model: info.model ?? null,
+      model_variant: info.modelVariant ?? null,
       time_created: info.time.created,
       time_updated: info.time.updated,
       time_compacting: info.time.compacting,
@@ -159,6 +165,13 @@ export namespace Session {
           diff: z.string().optional(),
         })
         .optional(),
+      model: z
+        .object({
+          providerID: z.string(),
+          modelID: z.string(),
+        })
+        .optional(),
+      modelVariant: z.string().optional(),
     })
     .meta({
       ref: "Session",
@@ -729,6 +742,49 @@ export namespace Session {
 
   export const setSummary = fn(z.object({ sessionID: SessionID.zod, summary: Info.shape.summary }), (input) =>
     runPromise((svc) => svc.setSummary({ sessionID: input.sessionID, summary: input.summary })),
+  )
+
+  export const setModel = fn(
+    z.object({
+      sessionID: SessionID.zod,
+      model: z.object({
+        providerID: z.string(),
+        modelID: z.string(),
+      }),
+      variant: z.string().optional(),
+    }),
+    async (input) => {
+      try {
+        await Provider.getModel(input.model.providerID as ProviderID, input.model.modelID as ModelID)
+      } catch (e) {
+        if (e instanceof Provider.ModelNotFoundError) {
+          log.warn("setModel: model not found, proceeding anyway", {
+            sessionID: input.sessionID,
+            model: input.model,
+            suggestions: (e as InstanceType<typeof Provider.ModelNotFoundError>).data.suggestions,
+          })
+        } else {
+          throw e
+        }
+      }
+      const row = Database.use((db) => {
+        const row = db
+          .update(SessionTable)
+          .set({
+            model: input.model,
+            model_variant: input.variant ?? null,
+            time_updated: Date.now(),
+          })
+          .where(eq(SessionTable.id, input.sessionID))
+          .returning()
+          .get()
+        if (!row) throw new NotFoundError({ message: `Session not found: ${input.sessionID}` })
+        return row
+      })
+      const info = fromRow(row)
+      Database.effect(() => Bus.publish(Event.Updated, { info }))
+      return info
+    },
   )
 
   export const diff = fn(SessionID.zod, (id) => runPromise((svc) => svc.diff(id)))

@@ -1293,6 +1293,18 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         yield* sessions.updateMessage(info)
         for (const part of parts) yield* sessions.updatePart(part)
 
+        if (info.role === "user" && info.model) {
+          yield* Effect.promise(() =>
+            Session.setModel({
+              sessionID: input.sessionID,
+              model: info.model,
+              variant: info.variant,
+            }).catch((e) => {
+              log.error("failed to set model on user message", { error: e, sessionID: input.sessionID })
+            }),
+          )
+        }
+
         return { info, parts }
       }, Effect.scoped)
 
