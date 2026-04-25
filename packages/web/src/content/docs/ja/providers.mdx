@@ -515,6 +515,8 @@ Cloudflare AI Gatewayを使用すると、統合エンドポイントを通じ�
    export CLOUDFLARE_API_TOKEN=your-api-token
 ```
 
+`CF_AIG_TOKEN` は `CLOUDFLARE_API_TOKEN` のエイリアスとしても使用できます。
+
 5. `/models` コマンドを実行してモデルを選択します。
 
    ```txt
@@ -903,8 +905,15 @@ Vertex AI API が有効になっている Google Cloud プロジェクトが必�
 :::
 
 2. 必要な環境変数を設定します。
-   - `GOOGLE_CLOUD_PROJECT`: Google Cloud プロジェクト ID
-   - `VERTEX_LOCATION` (オプション): Vertex AI の領域 (デフォルトは `global`)
+   - プロジェクト ID（いずれか1つ）:
+     - `GOOGLE_CLOUD_PROJECT`
+     - `GCP_PROJECT`
+     - `GCLOUD_PROJECT`
+   - ロケーション（オプション、この順序で確認）:
+     - `GOOGLE_VERTEX_LOCATION`
+     - `GOOGLE_CLOUD_LOCATION`
+     - `VERTEX_LOCATION`
+     - いずれも設定されていない場合のデフォルトは `us-central1`
    - 認証 (1 つ選択):
      - `GOOGLE_APPLICATION_CREDENTIALS`: サービスアカウントの JSON キーファイルへのパス
      - gcloud CLI を使用して認証する: `gcloud auth application-default login`
@@ -920,11 +929,11 @@ opencode の実行中に設定します。
 ```bash title="~/.bash_profile"
    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
    export GOOGLE_CLOUD_PROJECT=your-project-id
-   export VERTEX_LOCATION=global
+   export VERTEX_LOCATION=us-central1
 ```
 
 :::tip
-`global` 領域は、追加コストなしで可用性を向上させ、エラーを削減します。データ常駐要件には、リージョンエンドポイント (`us-central1` など) を使用します。 [詳細はこちら](https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models#regional_and_global_endpoints)
+`global` 領域は、追加コストなしで可用性を向上させ、エラーを削減します。`VERTEX_LOCATION=global` を設定して使用します。データ常駐要件には、リージョンエンドポイント (`us-central1` など) を使用します。 [詳細はこちら](https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models#regional_and_global_endpoints)
 :::
 
 3. `/models` コマンドを実行して、必要なモデルを選択します。
@@ -1093,12 +1102,12 @@ npm install -g opencode-helicone-session
 
 ##### 一般的なヘリコーンヘッダー
 
-| ヘッダー                   | 説明                                                                   |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `Helicone-Cache-Enabled`   | 応答キャッシュを有効にする (`true`/`false`)                            |
+| ヘッダー                       | 説明                                                    |
+| -------------------------- | ----------------------------------------------------- |
+| `Helicone-Cache-Enabled`   | 応答キャッシュを有効にする (`true`/`false`)                        |
 | `Helicone-User-Id`         | ユーザーごとにメトリクスを追跡する                                     |
 | `Helicone-Property-[Name]` | カスタムプロパティを追加します (例: `Helicone-Property-Environment`)。 |
-| `Helicone-Prompt-Id`       | リクエストをプロンプトバージョンに関連付ける                           |
+| `Helicone-Prompt-Id`       | リクエストをプロンプトバージョンに関連付ける                                |
 
 利用可能なすべてのヘッダーについては、[Helicone Header Directory](https://docs.helicone.ai/helicone-headers/header-directory) を参照してください。
 
@@ -1708,10 +1717,10 @@ OpenCode 設定を通じてモデルをカスタマイズすることもでき�
 
 いくつかの便利なルーティングオプション:
 
-| オプション          | 説明                                                 |
-| ------------------- | ---------------------------------------------------- |
-| `order`             | 試行するプロバイダーシーケンス                       |
-| `only`              | 特定のプロバイダーに制限する                         |
+| オプション               | 説明                         |
+| ------------------- | -------------------------- |
+| `order`             | 試行するプロバイダーシーケンス            |
+| `only`              | 特定のプロバイダーに制限する             |
 | `zeroDataRetention` | データ保持ポリシーがゼロのプロバイダーのみを使用する |
 
 ---

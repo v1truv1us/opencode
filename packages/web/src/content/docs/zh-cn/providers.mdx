@@ -481,6 +481,8 @@ Cloudflare AI Gateway 允许你通过统一端点访问来自 OpenAI、Anthropic
    export CLOUDFLARE_API_TOKEN=your-api-token
    ```
 
+   `CF_AIG_TOKEN` 也可作为 `CLOUDFLARE_API_TOKEN` 的别名使用。
+
 5. 执行 `/models` 命令选择模型。
 
    ```txt
@@ -824,8 +826,15 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
    :::
 
 2. 设置所需的环境变量：
-   - `GOOGLE_CLOUD_PROJECT`：你的 Google Cloud 项目 ID
-   - `VERTEX_LOCATION`（可选）：Vertex AI 的区域（默认为 `global`）
+   - 项目 ID（选择其一）：
+     - `GOOGLE_CLOUD_PROJECT`
+     - `GCP_PROJECT`
+     - `GCLOUD_PROJECT`
+   - 位置（可选，按此顺序检查）：
+     - `GOOGLE_VERTEX_LOCATION`
+     - `GOOGLE_CLOUD_LOCATION`
+     - `VERTEX_LOCATION`
+     - 如果未设置任何值，默认为 `us-central1`
    - 身份验证（选择其一）：
      - `GOOGLE_APPLICATION_CREDENTIALS`：服务账户 JSON 密钥文件的路径
      - 使用 gcloud CLI 进行身份验证：`gcloud auth application-default login`
@@ -841,11 +850,11 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
    ```bash title="~/.bash_profile"
    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
    export GOOGLE_CLOUD_PROJECT=your-project-id
-   export VERTEX_LOCATION=global
+   export VERTEX_LOCATION=us-central1
    ```
 
 :::tip
-`global` 区域可以提高可用性并减少错误，且不会产生额外费用。如果有数据驻留需求，请使用区域端点（例如 `us-central1`）。[了解更多](https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models#regional_and_global_endpoints)
+`global` 区域可以提高可用性并减少错误，且不会产生额外费用。通过设置 `VERTEX_LOCATION=global` 来使用它。如果有数据驻留需求，请使用区域端点（例如 `us-central1`）。[了解更多](https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models#regional_and_global_endpoints)
 :::
 
 3. 执行 `/models` 命令选择你想要的模型。
@@ -1014,10 +1023,10 @@ npm install -g opencode-helicone-session
 
 ##### 常用 Helicone 请求头
 
-| 请求头                     | 描述                                                   |
-| -------------------------- | ------------------------------------------------------ |
-| `Helicone-Cache-Enabled`   | 启用响应缓存（`true`/`false`）                         |
-| `Helicone-User-Id`         | 按用户跟踪指标                                         |
+| 请求头                        | 描述                                          |
+| -------------------------- | ------------------------------------------- |
+| `Helicone-Cache-Enabled`   | 启用响应缓存（`true`/`false`）                      |
+| `Helicone-User-Id`         | 按用户跟踪指标                                     |
 | `Helicone-Property-[Name]` | 添加自定义属性（例如 `Helicone-Property-Environment`） |
 | `Helicone-Prompt-Id`       | 将请求与提示词版本关联                                 |
 
@@ -1661,10 +1670,10 @@ Vercel AI Gateway 允许你通过统一端点访问来自 OpenAI、Anthropic、G
 
 一些常用的路由选项：
 
-| 选项                | 描述                             |
-| ------------------- | -------------------------------- |
-| `order`             | 提供商尝试顺序                   |
-| `only`              | 限制为特定提供商                 |
+| 选项                  | 描述               |
+| ------------------- | ---------------- |
+| `order`             | 提供商尝试顺序          |
+| `only`              | 限制为特定提供商         |
 | `zeroDataRetention` | 仅使用具有零数据留存策略的提供商 |
 
 ---
