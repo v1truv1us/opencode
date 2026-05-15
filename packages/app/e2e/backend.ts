@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process"
+import { spawn, execSync } from "node:child_process"
 import fs from "node:fs/promises"
 import net from "node:net"
 import os from "node:os"
@@ -66,6 +66,29 @@ function tail(input: string[]) {
   return input.slice(-40).join("")
 }
 
+async function killTree(proc: ReturnType<typeof spawn>) {
+  const pid = proc.pid
+  if (!pid || done(proc)) return
+  if (process.platform === "win32") {
+    try {
+      execSync(`taskkill /pid ${pid} /T /F`, { stdio: "ignore" })
+    } catch {}
+  } else {
+    proc.kill("SIGTERM")
+  }
+  await waitExit(proc)
+  if (!done(proc)) {
+    if (process.platform === "win32") {
+      try {
+        execSync(`taskkill /pid ${pid} /T /F`, { stdio: "ignore" })
+      } catch {}
+    } else {
+      proc.kill("SIGKILL")
+    }
+    await waitExit(proc)
+  }
+}
+
 export async function startBackend(label: string, input?: { llmUrl?: string }): Promise<Handle> {
   const port = await freePort()
   const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), `opencode-e2e-${label}-`))
@@ -105,12 +128,18 @@ export async function startBackend(label: string, input?: { llmUrl?: string }): 
     err.push(String(chunk))
     cap(err)
   })
+  proc.on("exit", (code, signal) => {
+    if (code !== 0 && code !== null) {
+      console.warn(`[e2e:backend:${label}] exited with code=${code} signal=${signal}`)
+      if (err.length) console.warn(tail(err))
+    }
+  })
 
   const url = `http://127.0.0.1:${port}`
   try {
     await waitForHealth(url)
   } catch (error) {
-    proc.kill("SIGTERM")
+    await killTree(proc)
     await fs.rm(sandbox, { recursive: true, force: true }).catch(() => undefined)
     throw new Error(
       [
@@ -127,14 +156,7 @@ export async function startBackend(label: string, input?: { llmUrl?: string }): 
   return {
     url,
     async stop() {
-      if (!done(proc)) {
-        proc.kill("SIGTERM")
-        await waitExit(proc)
-      }
-      if (!done(proc)) {
-        proc.kill("SIGKILL")
-        await waitExit(proc)
-      }
+      await killTree(proc)
       await fs.rm(sandbox, { recursive: true, force: true }).catch(() => undefined)
     },
   }

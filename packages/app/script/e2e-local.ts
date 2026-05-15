@@ -2,6 +2,7 @@ import fs from "node:fs/promises"
 import net from "node:net"
 import os from "node:os"
 import path from "node:path"
+import { execSync } from "node:child_process"
 
 async function freePort() {
   return await new Promise<number>((resolve, reject) => {
@@ -95,8 +96,19 @@ const cleanup = async () => {
   if (cleaned) return
   cleaned = true
 
-  if (seed && seed.exitCode === null) seed.kill("SIGTERM")
-  if (runner && runner.exitCode === null) runner.kill("SIGTERM")
+  const kill = (child: ReturnType<typeof Bun.spawn> | undefined) => {
+    if (!child || child.exitCode !== null) return
+    const pid = child.pid
+    if (process.platform === "win32" && pid) {
+      try {
+        execSync(`taskkill /pid ${pid} /T /F`, { stdio: "ignore" })
+      } catch {}
+    } else {
+      child.kill("SIGTERM")
+    }
+  }
+  kill(seed)
+  kill(runner)
 
   const jobs = [
     inst?.Instance.disposeAll(),
@@ -108,7 +120,7 @@ const cleanup = async () => {
 
 const shutdown = (code: number, reason: string) => {
   process.exitCode = code
-  void cleanup().finally(() => {
+  void Promise.race([cleanup(), new Promise<void>((resolve) => setTimeout(resolve, 10_000))]).finally(() => {
     console.error(`e2e-local shutdown: ${reason}`)
     process.exit(code)
   })
@@ -121,7 +133,9 @@ const reportInternalError = (reason: string, error: unknown) => {
 
 process.once("SIGINT", () => shutdown(130, "SIGINT"))
 process.once("SIGTERM", () => shutdown(143, "SIGTERM"))
-process.once("SIGHUP", () => shutdown(129, "SIGHUP"))
+if (process.platform !== "win32") {
+  process.once("SIGHUP", () => shutdown(129, "SIGHUP"))
+}
 process.once("uncaughtException", (error) => {
   reportInternalError("uncaughtException", error)
 })
@@ -174,7 +188,7 @@ try {
   console.error(error)
   code = 1
 } finally {
-  await cleanup()
+  await Promise.race([cleanup(), new Promise<void>((resolve) => setTimeout(resolve, 15_000))])
 }
 
 process.exit(code)
